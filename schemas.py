@@ -33,7 +33,7 @@ class NovoComecoCreate(BaseModel):
 
 class NovoComecoResponse(BaseModel):
     id: int
-    nome: str
+    nome_pessoa: str
     telefone: str
     usuario_id: int
     data_decisao: datetime

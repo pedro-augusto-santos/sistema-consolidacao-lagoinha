@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -24,6 +25,7 @@ def login(usuario: schemas.LoginRequest, db: Session = Depends(get_db)):
     token = criar_token({"sub": str(usuario_encontrado.id)})
     return {"access_token": token}
 
+
 @app.post("/registrar", response_model=schemas.UsuarioOut)
 def registrar(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     usuario_existente = db.query(models.Usuario).filter(models.Usuario.email == usuario.email).first()
@@ -40,3 +42,27 @@ def registrar(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(novo_usuario)
     return novo_usuario
+
+
+@app.post("/cadastrar", response_model=schemas.NovoComecoResponse)
+def cadastrar(novo_comeco: schemas.NovoComecoCreate, db: Session = Depends(get_db), usuario_atual  = Depends(verificar_token)):
+    novo_comeco_db = models.NovoComeco(
+        nome_pessoa=novo_comeco.nome,
+        telefone=novo_comeco.telefone,
+        data_decisao=datetime.utcnow(),
+        usuario_id=usuario_atual.id
+    )
+
+    db.add(novo_comeco_db)
+    db.commit()
+    db.refresh(novo_comeco_db)
+
+    return novo_comeco_db
+
+
+@app.get("/cadastros", response_model=list[schemas.NovoComecoResponse])
+def listar_cadastros(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
+
+    return db.query(models.NovoComeco).all()
+
+    
