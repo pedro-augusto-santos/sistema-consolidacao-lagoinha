@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -65,4 +65,50 @@ def listar_cadastros(db: Session = Depends(get_db), usuario_atual = Depends(veri
 
     return db.query(models.NovoComeco).all()
 
-    
+
+@app.get("/cadastros/hoje", response_model=list[schemas.NovoComecoResponse])
+def listar_cadastros(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
+    hoje = datetime.utcnow().date()
+    inicio_dia = datetime(hoje.year, hoje.month, hoje.day, 0, 0, 0)
+
+    return db.query(models.NovoComeco).filter(
+        models.NovoComeco.data_decisao >= inicio_dia
+    ).all()
+
+
+@app.get("/cadastros/semana", response_model=list[schemas.NovoComecoResponse])
+def cadastros_semana(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
+    hoje = datetime.utcnow().date()
+    inicio_semana_date = hoje - timedelta(days=hoje.weekday())
+    inicio_semana = datetime(inicio_semana_date.year, inicio_semana_date.month, inicio_semana_date.day, 0, 0, 0)
+
+    return db.query(models.NovoComeco).filter(
+        models.NovoComeco.data_decisao >= inicio_semana
+    ).all()
+
+
+@app.get("/cadastros/mes", response_model=list[schemas.NovoComecoResponse])
+def cadastros_mes(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
+    hoje = datetime.utcnow().date()
+    inicio_mes = datetime(hoje.year, hoje.month, 1, 0, 0, 0)
+
+    return db.query(models.NovoComeco).filter(
+        models.NovoComeco.data_decisao >= inicio_mes
+    ).all()
+
+@app.get("/contagem", response_model=schemas.ContagemResponse)
+def contagem(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
+
+    hoje = datetime.utcnow().date()
+    inicio_dia = datetime(hoje.year, hoje.month, hoje.day, 0, 0, 0)
+    inicio_semana_date = hoje - timedelta(days=hoje.weekday())
+    inicio_semana = datetime(inicio_semana_date.year, inicio_semana_date.month, inicio_semana_date.day, 0, 0, 0)
+    inicio_mes = datetime(hoje.year, hoje.month, 1, 0, 0, 0)    
+
+
+    return schemas.ContagemResponse(
+        hoje=db.query(models.NovoComeco).filter(models.NovoComeco.data_decisao >= inicio_dia).count(),
+        semana=db.query(models.NovoComeco).filter(models.NovoComeco.data_decisao >= inicio_semana).count(),
+        mes=db.query(models.NovoComeco).filter(models.NovoComeco.data_decisao >= inicio_mes).count(),
+        total=db.query(models.NovoComeco).count()
+    )

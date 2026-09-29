@@ -40,3 +40,10 @@ class NovoComecoResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        
+
+class ContagemResponse(BaseModel):
+    hoje: int
+    semana: int
+    mes: int
+    total: int
