@@ -1,12 +1,15 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
 import models
 import schemas
 from auth import hash_senha, verificar_senha, criar_token, verificar_token
+from utils import calcular_cortes
+
 
 app = FastAPI()
+
 
 def get_db():
     try:
@@ -14,6 +17,7 @@ def get_db():
         yield sessao_db
     finally:
         sessao_db.close()
+
 
 @app.post("/login", response_model=schemas.TokenResponse)
 def login(usuario: schemas.LoginRequest, db: Session = Depends(get_db)):
@@ -68,8 +72,7 @@ def listar_cadastros(db: Session = Depends(get_db), usuario_atual = Depends(veri
 
 @app.get("/cadastros/hoje", response_model=list[schemas.NovoComecoResponse])
 def listar_cadastros(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
-    hoje = datetime.utcnow().date()
-    inicio_dia = datetime(hoje.year, hoje.month, hoje.day, 0, 0, 0)
+    inicio_dia = calcular_cortes()[0]
 
     return db.query(models.NovoComeco).filter(
         models.NovoComeco.data_decisao >= inicio_dia
@@ -78,9 +81,7 @@ def listar_cadastros(db: Session = Depends(get_db), usuario_atual = Depends(veri
 
 @app.get("/cadastros/semana", response_model=list[schemas.NovoComecoResponse])
 def cadastros_semana(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
-    hoje = datetime.utcnow().date()
-    inicio_semana_date = hoje - timedelta(days=hoje.weekday())
-    inicio_semana = datetime(inicio_semana_date.year, inicio_semana_date.month, inicio_semana_date.day, 0, 0, 0)
+    inicio_semana = calcular_cortes()[1]
 
     return db.query(models.NovoComeco).filter(
         models.NovoComeco.data_decisao >= inicio_semana
@@ -89,8 +90,7 @@ def cadastros_semana(db: Session = Depends(get_db), usuario_atual = Depends(veri
 
 @app.get("/cadastros/mes", response_model=list[schemas.NovoComecoResponse])
 def cadastros_mes(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
-    hoje = datetime.utcnow().date()
-    inicio_mes = datetime(hoje.year, hoje.month, 1, 0, 0, 0)
+    inicio_mes = calcular_cortes()[2]
 
     return db.query(models.NovoComeco).filter(
         models.NovoComeco.data_decisao >= inicio_mes
@@ -99,12 +99,7 @@ def cadastros_mes(db: Session = Depends(get_db), usuario_atual = Depends(verific
 @app.get("/contagem", response_model=schemas.ContagemResponse)
 def contagem(db: Session = Depends(get_db), usuario_atual = Depends(verificar_token)):
 
-    hoje = datetime.utcnow().date()
-    inicio_dia = datetime(hoje.year, hoje.month, hoje.day, 0, 0, 0)
-    inicio_semana_date = hoje - timedelta(days=hoje.weekday())
-    inicio_semana = datetime(inicio_semana_date.year, inicio_semana_date.month, inicio_semana_date.day, 0, 0, 0)
-    inicio_mes = datetime(hoje.year, hoje.month, 1, 0, 0, 0)    
-
+    inicio_dia, inicio_semana, inicio_mes = calcular_cortes()
 
     return schemas.ContagemResponse(
         hoje=db.query(models.NovoComeco).filter(models.NovoComeco.data_decisao >= inicio_dia).count(),
